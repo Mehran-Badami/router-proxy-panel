@@ -9,6 +9,12 @@
 
 ## اجرا با Docker
 
+تصویر آمادهٔ عمومی برای AMD64 و ARM64 منتشر شده است:
+`ghcr.io/mehran-badami/router-proxy-panel:v0.1.0-beta.1`
+
+دستور کامل اجرای تصویر آماده در [راهنمای اصلی](README.md#local-docker-quick-start)
+قرار دارد. برای ساخت مستقیم از کد مخزن، دستورهای زیر را اجرا کنید:
+
 ```sh
 docker compose up -d --build
 docker compose exec panel python /app/manager.py --print-token
