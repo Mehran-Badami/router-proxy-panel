@@ -165,20 +165,25 @@ class SiteStore:
     def state(self):return self.read('sites.json',{'items':defaults(),'applied_revision':None,'message':'فهرست اولیه هنوز روی روتر اعمال نشده است'})
     def status(self):
         s=self.state();s['configured']=bool(os.environ.get('ROUTEROS_URL'))
-        s['pending']=revision(s['items'])!=s.get('applied_revision');return s
+        s['pending']=revision(s['items'])!=s.get('applied_revision') or bool(s.get('route_cleanup'));return s
     def update(self,items):
         s=self.state();s['items']=validate(items);s['message']='ذخیره شد؛ برای ارسال به روتر «اعمال» را بزنید';self.save('sites.json',s)
     def apply(self,restore=False):
         s=self.state();router=Router()
         if not restore:preflight(router)
+        before=[clean(r) for r in router.request('GET',PATH) if owned(r)]
         if restore:
             backup=self.read('sites-previous.json',None)
             if backup is None:raise ValueError('نسخهٔ قبلی موجود نیست')
             desired=backup['records']
         else:
             desired=records(s['items'])
-            if not s.get('incomplete'):
-                self.save('sites-previous.json',{'records':[clean(r) for r in router.request('GET',PATH) if owned(r)]})
+            if not s.get('incomplete') and not s.get('route_cleanup'):
+                self.save('sites-previous.json',{'records':before})
+        cleanup=s.get('route_cleanup') or {'records':[],'addresses':[]}
+        for row in before+records([{**item,'enabled':True} for item in s['items']]):
+            if row not in cleanup['records']:cleanup['records'].append(row)
+        s['route_cleanup']=cleanup
         s['incomplete']=True
         s['applied_revision']=None;s['message']='در حال اعمال؛ در صورت قطع ارتباط نتیجه را دوباره بررسی کنید';self.save('sites.json',s)
         try:
@@ -197,6 +202,23 @@ class SiteStore:
                     s['message']='اعمال ناموفق بود؛ قوانین قبلی به‌صورت خودکار بازگردانده و تأیید شدند'
                 except Exception:
                     s['message']='ارتباط یا اعمال ناموفق بود و بازگردانی خودکار تأیید نشد؛ بکاپ محفوظ است. اتصال روتر را بررسی و بازگردانی را اجرا کنید'
+            self.save('sites.json',s)
+            raise ValueError(s['message']) from None
+        try:
+            from site_cleanup import retire,warm
+            address_list,_,table=routing_names()
+            mark=os.environ.get('ROUTEROS_CONNECTION_MARK',table)
+            if not mark.strip():raise ValueError('Connection mark is empty')
+            def checkpoint(addresses):
+                cleanup['addresses']=addresses;self.save('sites.json',s)
+            warmed=warm(router,desired,address_list)
+            result=retire(router,cleanup['records'],desired,address_list,mark,cleanup['addresses'],checkpoint)
+            result['cached_addresses_restored']=warmed
+            s['route_cleanup']=None;s['cleanup_result']=result
+            s['message']+='؛ مسیرهای قدیمی پاک‌سازی شدند'
+            if result['shared_addresses']:s['message']+='؛ IPهای مشترک با قواعد دیگر حفظ شدند'
+        except Exception:
+            s['message']='قوانین DNS ثبت شدند؛ پاک‌سازی مسیرهای قدیمی کامل نشد. برای تکمیل دوباره «اعمال» را بزنید'
             self.save('sites.json',s)
             raise ValueError(s['message']) from None
         self.save('sites.json',s)

@@ -38,6 +38,7 @@ Set these container environment variables privately:
 | `ROUTEROS_SITE_LIST` | Existing destination address list; default `rpp-sites` |
 | `ROUTEROS_DNS_FORWARDER` | Existing named DNS forwarder; default `RPP Secure DNS` |
 | `ROUTEROS_ROUTING_TABLE` | Existing routing mark/table; default `rpp-proxy` |
+| `ROUTEROS_CONNECTION_MARK` | Proxy connection mark for scoped reconnects; defaults to the routing table name |
 
 Certificate verification is mandatory. Redirects are not followed. Credentials
 are not returned to the browser. Keep password files and `/data` out of source,
@@ -71,9 +72,18 @@ overlap first. Active regex rules always block synchronization.
   Rollback or retry. Rollback restores only the owned DNS records. Do not edit these owned records concurrently elsewhere.
 - Rollback preserves the edited panel list as a draft; it does not undo unrelated
   DNS/firewall settings. The private snapshot persists across container restarts.
-- Existing connections and cached addresses may continue using their previous
-  route until expiry/reconnection. No global connection or DNS-cache flush is
-  performed. Test real client behavior after changes.
+- After verifying DNS changes, Apply removes DNS-created address-list entries for
+  retired domains and restarts connections marked for this proxy to those IPs.
+  It preserves static entries, other lists/marks and addresses referenced by
+  another active DNS rule. Shared destination IPs retain their route and
+  connections. Direct-IP rules managed outside the panel also remain unchanged.
+  Cleanup is checkpointed privately; retry Apply if it reports incomplete cleanup.
+  When enabling sites, existing unexpired public IPv4 DNS answers can repopulate
+  their routes without flushing the network's cache. These temporary entries use
+  the reserved `RPP DNS cache: ` comment prefix and expire no later than the cached
+  answer (with a one-day maximum); do not use that prefix for manual entries.
+  There is no global connection or DNS-cache flush. Client DNS caches and shared
+  destinations still mean this is not an exact per-application traffic switch.
 
 The unit suite uses a simulated RouterOS REST backend. Container tests cover
 authenticated save, persistence and unconfigured apply rejection. Hardware and

@@ -1,5 +1,18 @@
 # Beta validation
 
+## v0.2.4-beta.1 site toggle routing
+
+60 automated tests pass, including scoped route cleanup, shared destinations,
+retry checkpoints, cached-address restoration and RouterOS duplicate-address
+handling. On a private RouterOS 7 installation, a temporary test domain was
+enabled and a real HTTPS response was received through a proxy-marked connection.
+Disabling it removed its two DNS-derived routes and the exact marked connection;
+re-enabling restored both routes from unexpired DNS cache and another proxied
+HTTPS request succeeded. The temporary group was then removed.
+
+Private user groups are not source presets or release fixtures. Static/manual
+routes and shared IPs remain protected; this is not an exact application switch.
+
 ## v0.2.3-beta.1 HTTPS site integration
 
 50 automated tests pass, including custom routing names, literal RouterOS record

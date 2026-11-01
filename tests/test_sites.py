@@ -10,6 +10,7 @@ import sites
 class FakeRouter:
     def __init__(self,rows=()):self.rows=copy.deepcopy(list(rows));self.writes=0;self.fail=False
     def request(self,method,path,data=None):
+        if path in ('/ip/firewall/address-list','/ip/firewall/connection','/ip/dns/cache'):return []
         if path=='/ip/dns/forwarders':return [{'name':'RPP Secure DNS'}]
         if path=='/ip/firewall/mangle':return [{'dst-address-list':'rpp-sites'},{'action':'mark-routing','new-routing-mark':'rpp-proxy'}]
         if path=='/ip/firewall/filter':return []
@@ -127,6 +128,24 @@ class SiteTests(unittest.TestCase):
             sites.sync(router,sites.records([item,{**self.item(),'id':'extra','domains':['new.example.com']}]))
         self.assertEqual(router.writes,writes)
         with self.assertRaises(ValueError):sites.sync(router,sites.records([{**item,'subdomains':False}]))
+
+    def test_cleanup_failure_is_pending_and_retry_preserves_original_backup(self):
+        db={};store=sites.SiteStore(lambda k,d:copy.deepcopy(db.get(k,d)),lambda k,v:db.__setitem__(k,copy.deepcopy(v)))
+        router=FakeRouter();attempts=[]
+        def interrupted(r,known,desired,address_list,mark,pending,checkpoint):
+            attempts.append(list(pending));checkpoint(['192.0.2.1']);raise OSError('temporary failure')
+        with patch.object(sites,'Router',return_value=router):
+            store.update([self.item()]);store.apply()
+            store.update([{**self.item(),'enabled':False}])
+            with patch('site_cleanup.retire',side_effect=interrupted):
+                with self.assertRaises(ValueError):store.apply()
+                backup=copy.deepcopy(db['sites-previous.json'])
+                self.assertTrue(store.status()['pending']);self.assertFalse(store.status()['incomplete'])
+                with self.assertRaises(ValueError):store.apply()
+                self.assertEqual(db['sites-previous.json'],backup)
+            self.assertEqual(attempts,[[],['192.0.2.1']])
+            with patch('site_cleanup.retire',return_value={'addresses_removed':0,'connections_restarted':1,'shared_addresses':0}):store.apply()
+            self.assertFalse(store.status()['pending']);self.assertEqual(db['sites-previous.json'],backup)
 
     def test_partial_write_failure_restores_original_rules(self):
         db={};store=sites.SiteStore(lambda k,d:copy.deepcopy(db.get(k,d)),lambda k,v:db.__setitem__(k,copy.deepcopy(v)))
