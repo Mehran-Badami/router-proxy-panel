@@ -30,7 +30,7 @@
 ### اجرای کانتینر
 
 تصویر آمادهٔ عمومی برای AMD64 و ARM64 منتشر شده است:
-`ghcr.io/mehran-badami/router-proxy-panel:v0.2.1-beta.1`
+`ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1`
 
 دستور کامل اجرای تصویر آماده در [راهنمای اصلی](README.md#local-docker-quick-start)
 قرار دارد. برای ساخت مستقیم از کد مخزن، دستورهای زیر را اجرا کنید:
@@ -68,3 +68,7 @@ docker compose exec panel python /app/manager.py --print-token
 
 جزئیات متغیرها در [راهنمای انگلیسی](README.md) و نکات محرمانگی در
 [SECURITY.md](SECURITY.md) آمده‌اند.
+
+تست سلامت HTTPS تا ۲۵ ثانیه فرصت دارد. خطای موقت جداگانه نمایش داده می‌شود؛
+تعویض خودکار پس از سه نوبت ناموفق پیاپی انجام می‌شود. این رفتار سرعت سرور را
+افزایش نمی‌دهد و مانع تشخیص خرابی پایدار نمی‌شود.

@@ -32,12 +32,12 @@ routing requires a separate tun2socks gateway and RouterOS policy routing.
 Public multi-architecture image (AMD64 / ARM64):
 
 ```sh
-docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.2.1-beta.1
+docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/router-proxy-panel:v0.2.1-beta.1
+  ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 

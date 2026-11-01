@@ -2,6 +2,7 @@ import base64, copy, hashlib, http.cookies, ipaddress, json, os, secrets, signal
 from safe_fetch import fetch_subscription
 from sites import SiteStore, merge_presets
 from onboarding import inspect_router
+from connection_health import ConnectionHealth
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -140,7 +141,7 @@ def check_https(port):
     # Small, real HTTPS bodies. Default TLS, certificate verification, no downgrade.
     total=0
     for url,marker in [('https://www.youtube.com/robots.txt',b'User-agent'),('https://web.whatsapp.com/robots.txt',b'User-agent')]:
-        r=subprocess.run(['curl','--proxy','socks5h://127.0.0.1:'+str(port),'--max-time','12','--max-filesize','131072','--fail','--silent','--show-error','--write-out','\n__TIMING__%{time_starttransfer}',url],capture_output=True,timeout=15)
+        r=subprocess.run(['curl','--proxy','socks5h://127.0.0.1:'+str(port),'--max-time','25','--max-filesize','131072','--fail','--silent','--show-error','--write-out','\n__TIMING__%{time_starttransfer}',url],capture_output=True,timeout=28)
         parts=r.stdout.rsplit(b'\n__TIMING__',1)
         if r.returncode or len(parts)!=2 or marker.lower() not in parts[0].lower(): raise ValueError('تست HTTPS ناموفق بود؛ اتصال فعال حفظ شد')
         total+=float(parts[1])
@@ -207,7 +208,7 @@ def select_best(force=False):
             try:
                 check_doh()
                 if state['enabled']: check_https(SOCKS_PORT)
-                connectivity.update(vpn_ok=True,checked=int(time.time()),message='اتصال امن برقرار است')
+                connectivity.update(vpn_ok=True,degraded=False,consecutive_failures=0,checked=int(time.time()),message='اتصال امن برقرار است')
                 scan['message']='سرور فعلی سالم است؛ اتصال حفظ شد'; return
             except Exception: pass
         for i,node in enumerate(snapshot):
@@ -220,7 +221,7 @@ def select_best(force=False):
                 with lock:
                     if not state.get('automatic'): return
                     activate(node,True)
-                connectivity.update(vpn_ok=True,checked=int(time.time()),message='سرور سالم جایگزین شد')
+                connectivity.update(vpn_ok=True,degraded=False,consecutive_failures=0,checked=int(time.time()),message='سرور سالم جایگزین شد')
                 scan['message']='اتصال بازیابی شد؛ سرور سالم انتخاب شد'; return
             except Exception as exc: record(node,error=exc)
         connectivity.update(vpn_ok=False,checked=int(time.time()),message='سرور سالم پیدا نشد؛ اعتبار اشتراک را بررسی یا لینک جدید وارد کنید')
@@ -231,7 +232,9 @@ def select_best(force=False):
         scan['running']=False; scan['last_complete']=time.time()
 
 def monitor():
-    failures=0; last_recovery=0
+    tracker=ConnectionHealth(); last_recovery=0
+    # The core process is asynchronous; allow its listeners to start first.
+    time.sleep(3)
     while True:
         if not read('config.json',{}).get('outbounds'):
             connectivity.update(vpn_ok=None,message='ابتدا یک اشتراک اضافه و سرور را انتخاب کنید')
@@ -240,13 +243,13 @@ def monitor():
             try:
                 check_doh()
                 if state['enabled']: check_https(SOCKS_PORT)
-                failures=0
-                connectivity.update(vpn_ok=True,checked=int(time.time()),message='اتصال امن برقرار است')
+                connectivity.update(**tracker.observe(True),checked=int(time.time()),message='اتصال امن برقرار است')
             except Exception:
-                failures+=1
-                connectivity.update(vpn_ok=False,checked=int(time.time()),message='اتصال VPN مشکل دارد؛ تنظیمات مسیر اضطراری روتر را بررسی کنید')
-            if state.get('automatic') and failures>=2 and time.time()-last_recovery>=120:
-                select_best(force=True); last_recovery=time.time(); failures=0
+                result=tracker.observe(False)
+                message='خطای موقت در تست اتصال؛ سرور فعلی حفظ شده و دوباره بررسی می‌شود' if result['consecutive_failures']<tracker.threshold else 'چند تست پیاپی ناموفق بود؛ بازیابی اتصال لازم است'
+                connectivity.update(**result,checked=int(time.time()),message=message)
+            if state.get('automatic') and tracker.failures>=tracker.threshold and time.time()-last_recovery>=120:
+                select_best(force=True); last_recovery=time.time(); tracker=ConnectionHealth()
         time.sleep(45)
 
 def subscription_info(text,headers=None):
