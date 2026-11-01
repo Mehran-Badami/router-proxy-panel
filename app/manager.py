@@ -1,5 +1,6 @@
 import base64, copy, hashlib, http.cookies, ipaddress, json, os, secrets, signal, socket, ssl, subprocess, threading, time, urllib.parse, uuid
 from safe_fetch import fetch_subscription
+from sites import SiteStore
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -25,6 +26,8 @@ def read(name, default):
     except (FileNotFoundError, ValueError): return default
 def save(name, value):
     p=DATA/(name+'.tmp'); p.write_text(json.dumps(value,ensure_ascii=False),encoding='utf-8'); p.chmod(0o600); p.replace(DATA/name)
+site_store=SiteStore(read,save)
+site_lock=threading.Lock()
 state=read('state.json',{'enabled':True,'selected':'No server selected','automatic':True})
 token_path=DATA/'access-token'
 if not token_path.exists(): token_path.write_text(secrets.token_urlsafe(24)); token_path.chmod(0o600)
@@ -341,6 +344,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path=='/':
                 body=Path(__file__).with_name('login.html').read_bytes(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Cache-Control','no-store'); self.end_headers(); self.wfile.write(body); return
             return self.reply(401,{'error':'Open your private management link'})
+        if u.path=='/api/sites': return self.reply(200,site_store.status())
         if u.path=='/api/status':
             active=read('config.json',{}).get('outbounds',[{}])[0]
             servers=[{'id':n['id'],'name':n['name'],'group':n['group'],'active':n['outbound']==active,'host':n['outbound']['settings']['vnext'][0]['address'],'health':health.get(n['id'],{}).copy()} for n in nodes]
@@ -357,6 +361,13 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length','0'))
             if length<1 or length>262144: raise ValueError('Input too large')
             body=json.loads(self.rfile.read(length))
+            if self.path in ('/api/sites/save','/api/sites/apply','/api/sites/rollback'):
+                if not site_lock.acquire(blocking=False):return self.reply(409,{'error':'عملیات سایت‌ها در حال اجراست'})
+                try:
+                    if self.path=='/api/sites/save':site_store.update(body.get('items'))
+                    else:site_store.apply(restore=self.path.endswith('/rollback'))
+                    return self.reply(200,site_store.status())
+                finally:site_lock.release()
             with lock:
                 if self.path=='/api/toggle':
                     previous=state['enabled']; state['enabled']=bool(body['enabled'])

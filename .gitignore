@@ -23,3 +23,7 @@ previous-config.json
 *-seed.json
 *.pem
 *.key
+# Private site configuration and router access files
+sites.json
+sites-previous.json
+router-password*

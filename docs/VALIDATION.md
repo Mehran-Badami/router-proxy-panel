@@ -1,5 +1,16 @@
 # Beta validation
 
+## v0.2.0-beta.1 site management
+
+35 tests pass, including simulated RouterOS reconciliation, conflict rejection,
+domain validation, idempotence and preserved rollback snapshots after failed
+retries. Container smoke tests additionally exercise authenticated site storage,
+restart persistence and rejection of apply without router configuration.
+The REST integration has not been exercised against physical RouterOS hardware.
+Presets are editable starting points, not verified exhaustive service inventories.
+
+## Initial container baseline
+
 Validated on 2026-11-01:
 
 - 27 automated tests passed: parsing, certificate policy, secure downloads,

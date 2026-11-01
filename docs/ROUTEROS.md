@@ -151,6 +151,9 @@ DNS encryption and selective traffic routing solve different problems.
 
 ## 7. Upgrade / remove
 
+Once routing works, [connect the panel to RouterOS](SITES.md) to manage selected
+domains through the Sites section instead of manually editing DNS records.
+
 Keep a private backup of `/data` and the old image tag. Stop the old container,
 replace only the application image, and remount the same volume. Validate login,
 selected server and DNS before considering the upgrade complete. Roll back the

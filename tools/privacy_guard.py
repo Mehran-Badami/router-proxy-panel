@@ -6,7 +6,7 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 TOP={'README.md','README.fa.md','LICENSE','SECURITY.md','THIRD_PARTY_NOTICES.md','Dockerfile','compose.yaml','.gitignore','.dockerignore'}
 DIRS={'app':{'.py','.html'},'tests':{'.py'},'tools':{'.py'},'docs':{'.md'},'.github':{'.yml','.yaml'}}
-RUNTIME={'access-token','catalog.json','state.json','health.json','runtime.json','dns-bootstrap.json','config.json','test.json','previous-config.json'}
+RUNTIME={'access-token','catalog.json','state.json','health.json','runtime.json','dns-bootstrap.json','config.json','test.json','previous-config.json','sites.json','sites-previous.json'}
 UUID=re.compile(r'\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b')
 
 def release_files(root=ROOT):

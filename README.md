@@ -11,6 +11,10 @@ No account, subscription, credentials, customer export or operational history is
 
 ## Features
 
+- Editable service presets and custom domain groups, with authenticated RouterOS
+  DNS synchronization, readback verification and last-apply rollback.
+  See [site management and one-time integration](docs/SITES.md).
+
 - Import TLS/Reality VLESS links or verified HTTPS subscriptions into separate groups.
 - Update, soft-delete and restore groups; show provider-reported quota/expiry information.
 - HTTPS reachability tests, optional 2 MB download tests and manual server selection.
@@ -28,12 +32,12 @@ routing requires a separate tun2socks gateway and RouterOS policy routing.
 Public multi-architecture image (AMD64 / ARM64):
 
 ```sh
-docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.1.0-beta.1
+docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.2.0-beta.1
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/router-proxy-panel:v0.1.0-beta.1
+  ghcr.io/mehran-badami/router-proxy-panel:v0.2.0-beta.1
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 

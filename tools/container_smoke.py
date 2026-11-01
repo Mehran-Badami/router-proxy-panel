@@ -41,6 +41,13 @@ def main(image,platform=None):
         code,_,body=request('/api/status',headers=auth);state=json.loads(body)
         assert code==200 and state['groups']==[] and state['servers']==[] and not state['running']
         assert token.encode() not in body
+        assert request('/api/sites')[0]==401
+        code,_,body=request('/api/sites',headers=auth)
+        sites=json.loads(body)
+        assert code==200 and len(sites['items'])==9 and sites['pending'] and not sites['configured']
+        custom={'id':'smoke','name':'Example','enabled':True,'subdomains':True,'domains':['example.com']}
+        assert request('/api/sites/save','POST',{'items':[custom]},auth)[0]==200
+        assert request('/api/sites/apply','POST',{},auth)[0]==400
         assert request('/api/toggle','POST',{'enabled':False},{**auth,'Origin':'https://other.example'})[0]==403
         validate="""import json,subprocess,manager as m
 for network in ('tcp','ws','xhttp','grpc','httpupgrade'):
@@ -59,6 +66,7 @@ print('Core configuration matrix passed')
             time.sleep(1)
         else:raise RuntimeError('Persistent login did not survive restart')
         assert docker('exec',name,'python','/app/manager.py','--print-token')==token
+        assert json.loads(request('/api/sites',headers=auth)[2])['items']==[custom]
         print('Container smoke passed: clean state, authentication, origin checks, core configs, restart persistence')
     finally:
         subprocess.run(['docker','rm','-f',name],capture_output=True)
