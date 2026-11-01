@@ -44,6 +44,14 @@ class SiteTests(unittest.TestCase):
     def test_invalid_schema_is_rejected(self):
         for value in [None,{},[self.item(),self.item()],[{**self.item(),'enabled':'false'}],[{**self.item(),'domains':[]}]]:
             with self.assertRaises(ValueError):sites.validate(value)
+    def test_preset_upgrade_preserves_custom_and_disabled_choices(self):
+        old=[{'id':'youtube','name':'My videos','enabled':False,'subdomains':False,'domains':['custom.example']}]
+        merged=sites.merge_presets(old+[self.item()])
+        y=next(x for x in merged if x['id']=='youtube')
+        self.assertFalse(y['enabled']);self.assertFalse(y['subdomains'])
+        self.assertIn('custom.example',y['domains']);self.assertIn('googlevideo.com',y['domains'])
+        self.assertIn(self.item(),merged)
+        self.assertEqual(merged,sites.merge_presets(merged))
     def test_reconcile_is_idempotent_and_preserves_unrelated(self):
         unrelated={'.id':'*unrelated','name':'private.example','comment':'operator record'}
         r=FakeRouter([unrelated]);desired=sites.records([self.item()])
@@ -61,7 +69,7 @@ class SiteTests(unittest.TestCase):
             store.update([self.item()]);store.apply();self.assertFalse(store.status()['pending'])
             store.update([]);router.fail=True
             with self.assertRaises(ValueError):store.apply()
-            snapshot=copy.deepcopy(db['sites-previous.json']);self.assertTrue(store.status()['incomplete'])
+            snapshot=copy.deepcopy(db['sites-previous.json']);self.assertFalse(store.status()['incomplete'])
             with self.assertRaises(ValueError):store.apply()
             self.assertEqual(snapshot,db['sites-previous.json'])
             router.fail=False;store.apply(restore=True)
@@ -69,5 +77,40 @@ class SiteTests(unittest.TestCase):
             self.assertTrue(store.status()['pending'])
     def test_unconfigured_router_and_http_rejected(self):
         with patch.dict(os.environ,{'ROUTEROS_URL':'http://router.example'},clear=True),self.assertRaises(ValueError):sites.Router()
+
+    def test_partial_write_failure_restores_original_rules(self):
+        db={};store=sites.SiteStore(lambda k,d:copy.deepcopy(db.get(k,d)),lambda k,v:db.__setitem__(k,copy.deepcopy(v)))
+        router=FakeRouter();original=router.request
+        def fail_second(method,path,data=None):
+            if method!='GET' and router.writes==1:
+                router.writes+=1
+                raise ValueError('connection interrupted')
+            return original(method,path,data)
+        router.request=fail_second
+        with patch.object(sites,'Router',return_value=router):
+            store.update([self.item(),{**self.item(),'id':'second','domains':['second.example']}])
+            with self.assertRaises(ValueError):store.apply()
+        self.assertEqual(router.rows,[])
+        self.assertFalse(store.status()['incomplete'])
+        self.assertTrue(store.status()['pending'])
+
+    def test_failed_rollback_preserves_snapshot_for_retry(self):
+        db={};store=sites.SiteStore(lambda k,d:copy.deepcopy(db.get(k,d)),lambda k,v:db.__setitem__(k,copy.deepcopy(v)))
+        router=FakeRouter();original=router.request
+        def fail_after_first(method,path,data=None):
+            if method!='GET' and router.writes>=1:raise ValueError('router offline')
+            return original(method,path,data)
+        router.request=fail_after_first
+        with patch.object(sites,'Router',return_value=router):
+            store.update([self.item(),{**self.item(),'id':'second','domains':['second.example']}])
+            with self.assertRaises(ValueError):store.apply()
+            self.assertTrue(store.status()['incomplete'])
+            self.assertEqual(db['sites-previous.json']['records'],[])
+            with self.assertRaises(ValueError):store.apply()
+            self.assertEqual(db['sites-previous.json']['records'],[])
+            router.request=original
+            store.apply(restore=True)
+        self.assertEqual(router.rows,[])
+        self.assertFalse(store.status()['incomplete'])
 
 if __name__=='__main__':unittest.main()

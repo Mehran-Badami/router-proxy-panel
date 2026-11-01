@@ -10,13 +10,14 @@ import ssl
 import urllib.parse
 
 PRESETS = [
-    ('youtube', 'YouTube', ['youtube.com','youtu.be','googlevideo.com','ytimg.com','youtubei.googleapis.com']),
-    ('telegram', 'Telegram', ['telegram.org','t.me','telegram.me','tdesktop.com']),
-    ('whatsapp', 'WhatsApp', ['whatsapp.com','whatsapp.net']),
-    ('instagram', 'Instagram', ['instagram.com','cdninstagram.com']),
+    ('youtube', 'YouTube', ['youtube.com','youtu.be','googlevideo.com','ytimg.com','youtubei.googleapis.com','youtube-nocookie.com','youtube.googleapis.com','ggpht.com']),
+    ('telegram', 'Telegram', ['telegram.org','t.me','telegram.me','tdesktop.com','telegra.ph','telesco.pe','telegram-cdn.org']),
+    ('whatsapp', 'WhatsApp', ['whatsapp.com','whatsapp.net','wa.me']),
+    ('instagram', 'Instagram', ['instagram.com','cdninstagram.com','ig.me','fbcdn.net','star.c10r.facebook.com']),
     ('x', 'X', ['x.com','twitter.com','t.co','twimg.com']),
-    ('clubhouse', 'Clubhouse', ['clubhouse.com','clubhouseapi.com','joinclubhouse.com']),
-    ('spotify', 'Spotify', ['spotify.com','scdn.co','spotifycdn.com']),
+    ('clubhouse', 'Clubhouse', ['clubhouse.com','clubhouseapi.com','joinclubhouse.com','agora.io','sd-rtn.com','rtnsvc.com','rtesvc.com']),
+    ('spotify', 'Spotify', ['spotify.com','scdn.co','spotifycdn.com','pscdn.co','spotifycdn.net','spoti.fi','spotify.link','audio-ak-spotify-com.akamaized.net','audio4-ak-spotify-com.akamaized.net','heads-ak-spotify-com.akamaized.net','heads4-ak-spotify-com.akamaized.net','spotify.com.edgesuite.net','spotify.map.fastly.net','spotify.map.fastlylb.net','cdn-spotify-experiments.conductrics.com']),
+    ('google-media', 'رسانه‌های مشترک گوگل', ['gstatic.com','googleusercontent.com']),
     ('assistant', 'Google Assistant', ['assistant.google.com','embeddedassistant.googleapis.com','speech.googleapis.com']),
     ('home', 'Google Home', ['home.google.com','googlehome.googleapis.com']),
 ]
@@ -38,6 +39,16 @@ def domain(value):
     if len(value)>253 or '.' not in value or any(not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?',part) for part in value.split('.')):
         raise ValueError('فقط دامنه وارد کنید؛ بدون https، مسیر، فاصله یا ستاره')
     return value
+
+def merge_presets(items):
+    items=validate(items)
+    by_id={item['id']:item for item in items}
+    for preset in defaults():
+        if preset['id'] in by_id:
+            old=by_id[preset['id']]
+            old['domains']=sorted(set(old['domains']+preset['domains']))
+        else:items.append(preset)
+    return validate(items)
 
 def validate(items):
     if not isinstance(items,list) or len(items)>100:raise ValueError('حداکثر ۱۰۰ گروه سایت مجاز است')
@@ -144,7 +155,8 @@ class SiteStore:
     def update(self,items):
         s=self.state();s['items']=validate(items);s['message']='ذخیره شد؛ برای ارسال به روتر «اعمال» را بزنید';self.save('sites.json',s)
     def apply(self,restore=False):
-        s=self.state();router=Router();preflight(router)
+        s=self.state();router=Router()
+        if not restore:preflight(router)
         if restore:
             backup=self.read('sites-previous.json',None)
             if backup is None:raise ValueError('نسخهٔ قبلی موجود نیست')
@@ -162,5 +174,15 @@ class SiteStore:
             s['message']='قوانین قبلی بازگردانده شدند؛ فهرست ویرایش‌شده حفظ شد' if restore else 'قوانین DNS اعمال و از روتر بازخوانی شدند؛ اتصال واقعی سایت را آزمایش کنید'
         except Exception:
             s['message']='اعمال کامل تأیید نشد؛ ممکن است بخشی اجرا شده باشد. دوباره اعمال کنید یا بازگردانی را بزنید'
-            self.save('sites.json',s);raise
+            if not restore:
+                try:
+                    previous=self.read('sites-previous.json',None)
+                    if previous is None:raise ValueError('Missing backup')
+                    sync(router,previous['records'])
+                    s['incomplete']=False
+                    s['message']='اعمال ناموفق بود؛ قوانین قبلی به‌صورت خودکار بازگردانده و تأیید شدند'
+                except Exception:
+                    s['message']='ارتباط یا اعمال ناموفق بود و بازگردانی خودکار تأیید نشد؛ بکاپ محفوظ است. اتصال روتر را بررسی و بازگردانی را اجرا کنید'
+            self.save('sites.json',s)
+            raise ValueError(s['message']) from None
         self.save('sites.json',s)

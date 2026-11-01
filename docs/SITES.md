@@ -50,10 +50,10 @@ images, releases and issue reports. Restart the container after configuration.
 - Records use `type=FWD`, `address-list=rpp-sites`, the named forwarder and the
   chosen subdomain behavior. See [RouterOS DNS](https://manual.mikrotik.com/docs/network-management/dns/).
 - Apply reconciles additions, edits and removals, then verifies a readback. It is
-  not a transaction. If a network error occurs, partial changes may remain and
-  the UI does not report success. Retry converges; Rollback restores the owned
-  DNS records saved before the last apply attempt. A failed retry preserves that
-  original snapshot. Do not edit these owned records concurrently elsewhere.
+  not a transaction. On failure, the panel attempts to restore and verify the
+  previous owned records automatically. If that fails too, partial changes may
+  remain; the UI reports the failure and keeps the original snapshot for manual
+  Rollback or retry. Rollback restores only the owned DNS records. Do not edit these owned records concurrently elsewhere.
 - Rollback preserves the edited panel list as a draft; it does not undo unrelated
   DNS/firewall settings. The private snapshot persists across container restarts.
 - Existing connections and cached addresses may continue using their previous
@@ -63,3 +63,16 @@ images, releases and issue reports. Restart the container after configuration.
 The unit suite uses a simulated RouterOS REST backend. Container tests cover
 authenticated save, persistence and unconfigured apply rejection. Hardware and
 real-router routing validation remain required before production deployment.
+
+## Simple setup screen
+
+The three-step guide checks router prerequisites without modifying the router,
+then guides the user through subscription import, automatic connection testing
+and service selection. Advanced server controls remain available in a collapsed
+section. Initial container, tunnel and HTTPS management setup still requires the
+RouterOS installation guide; this is not a universal automatic installer.
+
+Preset updates are explicit: they add missing suggested domains while preserving
+custom domains and existing enabled/disabled choices. Removed preset groups may
+be added again. Shared Google media domains can affect other Google services;
+Assistant and Home remain opt-in. Changes still require Save and Apply.

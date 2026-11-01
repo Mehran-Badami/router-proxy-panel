@@ -1,6 +1,7 @@
 import base64, copy, hashlib, http.cookies, ipaddress, json, os, secrets, signal, socket, ssl, subprocess, threading, time, urllib.parse, uuid
 from safe_fetch import fetch_subscription
-from sites import SiteStore
+from sites import SiteStore, merge_presets
+from onboarding import inspect_router
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -361,10 +362,12 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length','0'))
             if length<1 or length>262144: raise ValueError('Input too large')
             body=json.loads(self.rfile.read(length))
-            if self.path in ('/api/sites/save','/api/sites/apply','/api/sites/rollback'):
+            if self.path=='/api/setup/check':return self.reply(200,inspect_router())
+            if self.path in ('/api/sites/save','/api/sites/apply','/api/sites/rollback','/api/sites/presets'):
                 if not site_lock.acquire(blocking=False):return self.reply(409,{'error':'عملیات سایت‌ها در حال اجراست'})
                 try:
                     if self.path=='/api/sites/save':site_store.update(body.get('items'))
+                    elif self.path=='/api/sites/presets':site_store.update(merge_presets(site_store.state()['items']))
                     else:site_store.apply(restore=self.path.endswith('/rollback'))
                     return self.reply(200,site_store.status())
                 finally:site_lock.release()
