@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Router Proxy Panel — ورود</title>
+<style>body{font:16px Tahoma,sans-serif;background:#101a28;color:#eaf3ff;max-width:460px;margin:12vh auto;padding:24px;line-height:1.9}input,button{box-sizing:border-box;width:100%;padding:14px;margin:10px 0;border-radius:10px;font:inherit}button{background:#80e0b7;border:0;cursor:pointer}small{color:#bbcad8}#message{color:#ffbdaf}</style>
+<h1>Router Proxy Panel</h1><p>کلید خصوصی این نصب را وارد کنید.</p>
+<form id="login"><label for="key">کلید مدیریت</label><input id="key" type="password" autocomplete="current-password" required maxlength="128"><button>ورود</button></form>
+<p id="message" role="alert"></p><small>پس از ورود، همین صفحه را بوکمارک کنید. نشست ورود به‌صورت پیش‌فرض ۳۰ روز نگه داشته می‌شود. کلید از مدیر نصب دریافت می‌شود.</small>
+<script>document.getElementById('login').addEventListener('submit',async e=>{e.preventDefault();let m=document.getElementById('message');try{let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:document.getElementById('key').value.trim()})});if(!r.ok)throw Error(r.status===429?'یک دقیقه صبر کنید و دوباره امتحان کنید.':'کلید پذیرفته نشد یا آدرس پنل با تنظیمات نصب مطابقت ندارد.');location.replace('/')}catch(err){m.textContent=err.message}})</script></html>
