@@ -78,6 +78,56 @@ class SiteTests(unittest.TestCase):
     def test_unconfigured_router_and_http_rejected(self):
         with patch.dict(os.environ,{'ROUTEROS_URL':'http://router.example'},clear=True),self.assertRaises(ValueError):sites.Router()
 
+    def test_existing_routing_names_are_used_for_records_and_preflight(self):
+        names={'ROUTEROS_SITE_LIST':'existing-sites','ROUTEROS_DNS_FORWARDER':'Existing DNS','ROUTEROS_ROUTING_TABLE':'existing-tunnel'}
+        router=FakeRouter();original=router.request
+        def legacy(method,path,data=None):
+            rows=original(method,path,data)
+            for row in rows:
+                for key,value in list(row.items()):
+                    row[key]={'rpp-sites':'existing-sites','RPP Secure DNS':'Existing DNS','rpp-proxy':'existing-tunnel'}.get(value,value)
+            return rows
+        router.request=legacy
+        with patch.dict(os.environ,names):
+            desired=sites.records([self.item()])
+            self.assertEqual(desired[0]['address-list'],'existing-sites')
+            self.assertEqual(desired[0]['forward-to'],'Existing DNS')
+            sites.preflight(router)
+        with self.assertRaises(ValueError):sites.preflight(router)
+
+    def test_router_record_ids_remain_literal_for_patch_and_delete(self):
+        router=FakeRouter();original=router.request;paths=[]
+        def strict(method,path,data=None):
+            if method in ('PATCH','DELETE'):
+                paths.append(path)
+                self.assertIn('/*',path)
+                self.assertNotIn('%2A',path)
+            return original(method,path,data)
+        router.request=strict
+        sites.sync(router,sites.records([self.item()]))
+        sites.sync(router,sites.records([{**self.item(),'subdomains':False}]))
+        sites.sync(router,[])
+        self.assertEqual(len(paths),2)
+
+    def test_invalid_routing_name_rejected_before_sync(self):
+        for invalid in ('',' ', 'x\nother','x'*65):
+            with patch.dict(os.environ,{'ROUTEROS_SITE_LIST':invalid}),self.assertRaises(ValueError):
+                sites.records([self.item()])
+
+    def test_unchanged_adopted_overlap_is_preserved_but_not_expanded(self):
+        item={**self.item(),'domains':['service.example.com']}
+        desired=sites.records([item])
+        parent={'.id':'*parent','name':'example.com','type':'FWD','match-subdomain':'true','comment':'operator'}
+        router=FakeRouter([{**desired[0],'.id':'*child'},parent])
+        sites.sync(router,desired+sites.records([{**self.item(),'domains':['unrelated.example']}]))
+        self.assertIn(parent,router.rows)
+        self.assertEqual(router.writes,1)
+        writes=router.writes
+        with self.assertRaises(ValueError):
+            sites.sync(router,sites.records([item,{**self.item(),'id':'extra','domains':['new.example.com']}]))
+        self.assertEqual(router.writes,writes)
+        with self.assertRaises(ValueError):sites.sync(router,sites.records([{**item,'subdomains':False}]))
+
     def test_partial_write_failure_restores_original_rules(self):
         db={};store=sites.SiteStore(lambda k,d:copy.deepcopy(db.get(k,d)),lambda k,v:db.__setitem__(k,copy.deepcopy(v)))
         router=FakeRouter();original=router.request

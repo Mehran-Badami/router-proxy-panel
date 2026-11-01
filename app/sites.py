@@ -24,6 +24,15 @@ PRESETS = [
 PREFIX='RPP sites: '
 PATH='/ip/dns/static'
 
+def routing_names():
+    """Allow an existing installation to retain its routing and watchdog names."""
+    values=tuple(os.environ.get(key,default) for key,default in (
+        ('ROUTEROS_SITE_LIST','rpp-sites'),('ROUTEROS_DNS_FORWARDER','RPP Secure DNS'),
+        ('ROUTEROS_ROUTING_TABLE','rpp-proxy')))
+    if any(not value.strip() or len(value)>64 or any(ord(c)<32 or ord(c)==127 for c in value) for value in values):
+        raise ValueError('نام فهرست، فورواردِر یا جدول مسیر معتبر نیست')
+    return values
+
 def defaults():
     return [{'id':key,'name':name,'enabled':key not in ('assistant','home'),
              'subdomains':True,'domains':domains[:]} for key,name,domains in PRESETS]
@@ -67,11 +76,12 @@ def validate(items):
     return result
 
 def records(items):
+    address_list,forwarder,_=routing_names()
     merged={}
     for item in validate(items):
         if item['enabled']:
             for d in item['domains']:merged[d]=merged.get(d,False) or item['subdomains']
-    return [dict(name=d,type='FWD',**{'address-list':'rpp-sites','forward-to':'RPP Secure DNS',
+    return [dict(name=d,type='FWD',**{'address-list':address_list,'forward-to':forwarder,
             'match-subdomain':'true' if sub else 'false','disabled':'false','comment':PREFIX+d}) for d,sub in sorted(merged.items())]
 
 def revision(items):return hashlib.sha256(json.dumps(validate(items),sort_keys=True).encode()).hexdigest()
@@ -111,10 +121,13 @@ def sync(router, desired):
     """Only touch this feature's DNS records; verify readback. Retry reconciles partial writes."""
     current=router.request('GET',PATH)
     names={r['name'] for r in desired}
+    # A manually adopted, unchanged rule can coexist with a historical overlap.
+    # Never introduce or expand an overlap, and never exempt regex rules.
+    unchanged=[clean(r) for r in current if owned(r)]
     if any(not owned(r) and r.get('disabled','false')=='false' and
-           (r.get('regexp') or any(r.get('name')==n or
+           (r.get('regexp') or any(d not in unchanged and (r.get('name')==n or
             (r.get('match-subdomain')=='true' and n.endswith('.'+r.get('name',''))) or
-            (d['match-subdomain']=='true' and r.get('name','').endswith('.'+n))
+            (d['match-subdomain']=='true' and r.get('name','').endswith('.'+n)))
             for d in desired for n in [d['name']])) for r in current):
         raise ValueError('دامنه با قانون DNS موجود تداخل دارد؛ هیچ تغییری اعمال نشد')
     by_name={}
@@ -123,25 +136,26 @@ def sync(router, desired):
     for row in desired:
         found=by_name.get(row['name'],[])
         if found:
-            if clean(found[0])!=row:router.request('PATCH',PATH+'/'+urllib.parse.quote(found[0]['.id'],safe=''),row)
-            for duplicate in found[1:]:router.request('DELETE',PATH+'/'+urllib.parse.quote(duplicate['.id'],safe=''))
+            if clean(found[0])!=row:router.request('PATCH',PATH+'/'+urllib.parse.quote(found[0]['.id'],safe='*'),row)
+            for duplicate in found[1:]:router.request('DELETE',PATH+'/'+urllib.parse.quote(duplicate['.id'],safe='*'))
         else:router.request('PUT',PATH,row)
     for row in current:
-        if owned(row) and row.get('name') not in names:router.request('DELETE',PATH+'/'+urllib.parse.quote(row['.id'],safe=''))
+        if owned(row) and row.get('name') not in names:router.request('DELETE',PATH+'/'+urllib.parse.quote(row['.id'],safe='*'))
     actual=[clean(r) for r in router.request('GET',PATH) if owned(r)]
     if sorted(actual,key=lambda r:r['name'])!=sorted(desired,key=lambda r:r['name']):raise ValueError('تأیید نهایی روتر ناموفق بود؛ وضعیت ممکن است ناقص باشد')
 
 def preflight(router):
+    address_list,forwarder,table=routing_names()
     fw=router.request('GET','/ip/dns/forwarders')
-    if not any(x.get('name')=='RPP Secure DNS' for x in fw):raise ValueError('فورواردِر RPP Secure DNS باید یک‌بار روی روتر نصب شود')
+    if not any(x.get('name')==forwarder for x in fw):raise ValueError('فورواردِر DNS تنظیم‌شده روی روتر پیدا نشد: '+forwarder)
     rules=router.request('GET','/ip/firewall/mangle')
-    if not any(r.get('disabled','false')=='false' and r.get('dst-address-list')=='rpp-sites' for r in rules):
-        raise ValueError('قوانین مسیر rpp-sites هنوز نصب نشده‌اند؛ راهنمای راه‌اندازی روتر را بخوانید')
-    if not any(r.get('disabled','false')=='false' and r.get('action')=='mark-routing' and r.get('new-routing-mark')=='rpp-proxy' for r in rules):
-        raise ValueError('قانون مسیر rpp-proxy نصب نشده است')
+    if not any(r.get('disabled','false')=='false' and r.get('dst-address-list')==address_list for r in rules):
+        raise ValueError('قوانین فهرست مسیر نصب نشده‌اند: '+address_list)
+    if not any(r.get('disabled','false')=='false' and r.get('action')=='mark-routing' and r.get('new-routing-mark')==table for r in rules):
+        raise ValueError('قانون علامت‌گذاری مسیر نصب نشده است: '+table)
     routes=router.request('GET','/ip/route')
-    if not any(r.get('routing-table')=='rpp-proxy' and r.get('dst-address')=='0.0.0.0/0' and r.get('active')=='true' for r in routes):
-        raise ValueError('مسیر فعال تونل rpp-proxy پیدا نشد')
+    if not any(r.get('routing-table')==table and r.get('dst-address')=='0.0.0.0/0' and r.get('active')=='true' for r in routes):
+        raise ValueError('مسیر فعال تونل پیدا نشد: '+table)
     filters=router.request('GET','/ip/firewall/filter')
     if any(r.get('disabled','false')=='false' and r.get('action')=='fasttrack-connection' and r.get('connection-mark')!='no-mark' for r in filters):
         raise ValueError('ابتدا FastTrack را به اتصال‌های بدون علامت محدود کنید؛ راهنما را بخوانید')

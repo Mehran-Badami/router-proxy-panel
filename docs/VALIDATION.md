@@ -1,5 +1,20 @@
 # Beta validation
 
+## v0.2.3-beta.1 HTTPS site integration
+
+50 automated tests pass, including custom routing names, literal RouterOS record
+IDs and preservation of unchanged, explicitly adopted legacy overlaps. ARM64 and
+AMD64 container smoke tests passed. On one private RouterOS 7 installation, HTTPS REST
+was tested with a dedicated source-restricted account and a private CA; an
+untrusted CA was rejected. The panel's readiness check and real DNS rule creation
+and deletion passed. Existing rules were compared before and after; unrelated
+rules were unchanged. Real HTTPS page and secure-DNS checks also passed.
+
+This validates that installation, not arbitrary router configurations. Existing
+overlaps still require operator review, and deleting a legacy overlapping rule
+may prevent its re-creation until the overlap is resolved. No operational
+identifiers, credentials, subscription data or router exports are published.
+
 ## v0.2.0-beta.1 site management
 
 35 tests pass, including simulated RouterOS reconciliation, conflict rejection,

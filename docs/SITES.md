@@ -23,7 +23,7 @@ This feature updates site selection, not the initial tunnel or firewall setup.
 
 Enable RouterOS HTTPS REST (`www-ssl`) with a certificate whose name/IP matches
 the configured URL. Restrict access to the panel container's address. Use a
-dedicated RouterOS account with `read,write,rest-api`; these permissions are
+dedicated RouterOS account with `read,write,api,rest-api`; these permissions are
 broader than DNS-only, because RouterOS does not provide per-record REST ACLs.
 Do not expose REST to WAN. Follow the [official REST documentation](https://help.mikrotik.com/docs/spaces/ROS/pages/47579162/REST%2BAPI).
 
@@ -35,10 +35,25 @@ Set these container environment variables privately:
 | `ROUTEROS_USER` | Dedicated router account |
 | `ROUTEROS_PASSWORD_FILE` | Path to a mounted private password file, readable by UID 10001 |
 | `ROUTEROS_CA_FILE` | Optional mounted PEM CA certificate for a private CA |
+| `ROUTEROS_SITE_LIST` | Existing destination address list; default `rpp-sites` |
+| `ROUTEROS_DNS_FORWARDER` | Existing named DNS forwarder; default `RPP Secure DNS` |
+| `ROUTEROS_ROUTING_TABLE` | Existing routing mark/table; default `rpp-proxy` |
 
 Certificate verification is mandatory. Redirects are not followed. Credentials
 are not returned to the browser. Keep password files and `/data` out of source,
 images, releases and issue reports. Restart the container after configuration.
+
+Existing installations can retain their routing names with the three optional
+variables above. Names must refer to already configured router objects; the panel
+does not rename or create them. Existing DNS rules are not automatically adopted:
+back them up and review overlaps before assigning the reserved ownership comment.
+Keep any watchdog and direct-IP rules in place. Do not add the ownership prefix
+to unrelated or disabled DNS rules.
+An explicitly adopted rule that remains identical can retain an existing
+overlap; this is not evidence that the old overlap routes correctly. New or
+changed overlapping rules are rejected. After deleting such a legacy rule,
+re-adding it or rolling it back can require an administrator to resolve the
+overlap first. Active regex rules always block synchronization.
 
 ## Apply and recovery semantics
 
