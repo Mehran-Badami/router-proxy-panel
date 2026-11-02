@@ -2,6 +2,11 @@
 
 ## Native TUN source branch (2026-11-02)
 
+After removing a duplicate privacy-audit wrapper, 65 unit tests remain. The
+privacy guard still runs explicitly in CI and packaging. The two reusable
+container checks live under `tests/integration/`; deployment diagnostics are
+not part of the repository or image.
+
 The AMD64 native gateway integration test passed with actual routed HTTP/HTTPS
 body verification, UDP payloads up to 4096 bytes, root privilege removal, probe
 isolation, Xray crash recovery, VPN off/on and full container restart. The normal

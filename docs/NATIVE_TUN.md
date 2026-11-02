@@ -107,7 +107,7 @@ The local test needs a Linux Docker engine and disposable TLS certificates:
 ```sh
 python -m pip install cryptography
 docker build -t router-proxy-panel:native .
-python tools/native_tun_smoke.py --image router-proxy-panel:native
+python tests/integration/native_tun_smoke.py --image router-proxy-panel:native
 ```
 
 It creates isolated disposable client, gateway and TLS server containers. It

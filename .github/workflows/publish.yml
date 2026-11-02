@@ -27,12 +27,12 @@ jobs:
       - name: Build and smoke-test AMD64
         run: |
           docker build -t router-proxy-panel:check .
-          python tools/container_smoke.py --image router-proxy-panel:check
-          python tools/native_tun_smoke.py --image router-proxy-panel:check
+          python tests/integration/container_smoke.py --image router-proxy-panel:check
+          python tests/integration/native_tun_smoke.py --image router-proxy-panel:check
       - name: Build and smoke-test ARM64
         run: |
           docker buildx build --platform linux/arm64 --load -t router-proxy-panel:arm64-check .
-          python tools/container_smoke.py --image router-proxy-panel:arm64-check --platform linux/arm64
+          python tests/integration/container_smoke.py --image router-proxy-panel:arm64-check --platform linux/arm64
       - name: Image name
         id: image
         env:

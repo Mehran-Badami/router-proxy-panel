@@ -115,13 +115,20 @@ python -m unittest discover -s tests -v
 python tools/privacy_guard.py
 python tools/package_release.py
 docker build -t router-proxy-panel:local .
-python tools/container_smoke.py --image router-proxy-panel:local
+python tests/integration/container_smoke.py --image router-proxy-panel:local
 ```
 
 GitHub Actions runs tests and container smoke checks. Publishing requires a
 version tag or an explicit manual publish request and uses GHCR in the repository
 owner's namespace. Source archives are built from an allowlist, not from a live
 working directory or container export. See [release notes](docs/RELEASING.md).
+
+`tests/` contains regression tests for authentication, configuration, recovery,
+domain updates and rollback. `tests/integration/` holds the two reusable container
+checks: a clean panel install and the native gateway's real traffic/recovery path.
+Temporary deployment diagnostics and real router fixtures are not source files.
+The Docker build includes only `app/` and license notices; tests and developer
+tools are not copied into the deployed image.
 
 ## License
 

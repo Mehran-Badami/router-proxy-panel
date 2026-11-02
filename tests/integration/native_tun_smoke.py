@@ -38,7 +38,7 @@ def serve(port,tls=False):
 def udp():
  s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.bind(('198.18.10.3',9005))
  while True:
-  b,a=s.recvfrom(65535);print('UDP received',len(b),flush=True);s.sendto(b,a)
+  b,a=s.recvfrom(65535);s.sendto(b,a)
 for fn,args in ((serve,(8085,)),(serve,(8444,True)),(udp,())):threading.Thread(target=fn,args=args,daemon=True).start()
 subprocess.run(['/usr/local/bin/xray','run','-c','/lab/server.json'],check=True)
 '''
@@ -63,6 +63,7 @@ def main(image,platform=None):
     prefix='rpp-tun-'+uuid.uuid4().hex[:8]
     gateway,server,client=(prefix+'-'+s for s in ('gateway','server','client'))
     lan=prefix+'-lan'
+    volume=prefix+'-data'
     platform_args=['--platform',platform] if platform else []
     def execute(name,code):return docker('exec',name,'python','-c',code)
     def ready():
@@ -82,7 +83,7 @@ for scheme,port in (('http',8085),('https',8444)):
   result.append([scheme,len(data)])
 s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.settimeout(5)
 for n in (1,1200,4096):
- print('UDP test',n,flush=True);b=b'x'*n;s.sendto(b,('{SERVER}',9005));assert s.recv(65535)==b
+ b=b'x'*n;s.sendto(b,('{SERVER}',9005));assert s.recv(65535)==b
 print(json.dumps(result+[['udp',3]]))
 ''')
         print(result,flush=True)
@@ -103,11 +104,15 @@ print(json.dumps(result+[['udp',3]]))
             docker('run','-d','--name',server,*platform_args,'--network',lan,'--ip','198.19.10.4','--user','0:0','--cap-add=NET_ADMIN','-v',str(lab)+':/lab:ro','--entrypoint','python',image,'/lab/server.py')
             docker('exec',server,'ip','route','del','default')
             out['settings']['vnext'][0]['address']='198.19.10.4'
-            docker('create','--name',gateway,*platform_args,'--network',lan,'--ip','198.19.10.2','--user','0:0','--cap-drop=ALL','--cap-add=NET_ADMIN','--cap-add=SETUID','--cap-add=SETGID','--cap-add=CHOWN','--cap-add=FOWNER','--cap-add=DAC_OVERRIDE','--device','/dev/net/tun','--sysctl','net.ipv4.ip_forward=1','--sysctl','net.ipv4.conf.all.rp_filter=2','--sysctl','net.ipv4.conf.default.rp_filter=2','-e','RPP_GATEWAY_MODE=tun','-e','RPP_LAN_CIDRS='+LAN,'-e','ALLOW_SYSTEM_BOOTSTRAP=false','-v',str(seed)+':/data',image)
+            # A named volume keeps container UID changes out of the host's temp
+            # directory, so unprivileged Linux CI can clean its fixtures normally.
+            docker('volume','create',volume)
+            docker('create','--name',gateway,*platform_args,'--network',lan,'--ip','198.19.10.2','--user','0:0','--cap-drop=ALL','--cap-add=NET_ADMIN','--cap-add=SETUID','--cap-add=SETGID','--cap-add=CHOWN','--cap-add=FOWNER','--cap-add=DAC_OVERRIDE','--device','/dev/net/tun','--sysctl','net.ipv4.ip_forward=1','--sysctl','net.ipv4.conf.all.rp_filter=2','--sysctl','net.ipv4.conf.default.rp_filter=2','-e','RPP_GATEWAY_MODE=tun','-e','RPP_LAN_CIDRS='+LAN,'-e','ALLOW_SYSTEM_BOOTSTRAP=false','-v',volume+':/data',image)
             docker('cp',str(lab/'cert.pem'),gateway+':/data/lab-ca.crt')
             # The CA is a laboratory-only, generated certificate; use its data path.
             out['streamSettings']['tlsSettings']['certificates'][0]['certificateFile']='/data/lab-ca.crt'
             (seed/'config.json').write_text(json.dumps({'outbounds':[out]}))
+            docker('cp',str(seed)+'/.',gateway+':/data')
             docker('start',gateway);ready()
             docker('exec',gateway,'ip','route','del','default')
             docker('exec',gateway,'ip','route','add',SERVER+'/32','via','198.19.10.4')
@@ -116,8 +121,6 @@ print(json.dumps(result+[['udp',3]]))
             docker('exec',client,'ip','route','add',SERVER+'/32','via','198.19.10.2')
             assert 'dev eth0' in docker('exec',gateway,'ip','route','get','198.19.10.3')
             assert 'rpp0' not in docker('exec',gateway,'ip','route','get',SERVER)
-            print('Lab HTTP',execute(server,"import urllib.request;print(len(urllib.request.urlopen('http://"+SERVER+":8085',timeout=5).read()))"),flush=True)
-            print('Lab SOCKS',docker('exec',gateway,'curl','--proxy','socks5h://127.0.0.1:1080','--fail','--silent','--show-error','--max-time','8','--output','/dev/null','--write-out','%{http_code} %{size_download}','http://'+SERVER+':8085'),flush=True)
             probes(SERVER)
             print(execute(gateway,"""from pathlib import Path
 import json,manager
@@ -146,6 +149,7 @@ print('Unprivileged gateway, isolated probes, packet counters and local route ve
         raise
     finally:
         for name in (client,gateway,server):docker('rm','-f',name,check=False)
+        docker('volume','rm',volume,check=False)
         docker('network','rm',lan,check=False)
 
 if __name__=='__main__':
