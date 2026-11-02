@@ -11,6 +11,10 @@ No account, subscription, credentials, customer export or operational history is
 
 ## Features
 
+- Four mobile-friendly views: Home, Subscriptions, Apps, and Settings. Grouped
+  server cards, search and latency sorting replace wide tables; routine Xray
+  controls use a familiar mobile-client layout. No runtime settings are reset
+  when navigating, and unsaved domain edits survive view changes and polling.
 - Editable service presets and custom domain groups, with authenticated RouterOS
   DNS synchronization, readback verification and last-apply rollback.
   See [site management and one-time integration](docs/SITES.md).

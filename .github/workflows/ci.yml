@@ -7,6 +7,24 @@ on:
 permissions:
   contents: read
 jobs:
+  panel-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install isolated browser test dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/rpp-ui" playwright@1.62.1
+          "$RUNNER_TEMP/rpp-ui/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Check mobile panel and preserve settings
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/rpp-ui/node_modules/playwright/index.mjs
+          UI_ARTIFACT_DIR: ${{ runner.temp }}/panel-ui-artifacts
+        run: node tests/integration/panel_ui.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: panel-ui-previews
+          path: ${{ runner.temp }}/panel-ui-artifacts/
   verify:
     runs-on: ubuntu-latest
     steps:

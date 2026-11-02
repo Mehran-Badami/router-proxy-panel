@@ -1,13 +1,16 @@
 # Manage sites from the panel
 
-The Sites section contains editable starter groups for YouTube, Telegram,
+The Apps section (برنامه‌ها) contains editable starter groups for YouTube, Telegram,
 WhatsApp, Instagram, X, Clubhouse and Spotify. Google Assistant and Google Home
 are separate, initially disabled groups. These lists are starting points, not
 exhaustive service inventories. Direct-IP traffic, voice/media endpoints, IPv6,
 shared CDNs and client-side private DNS can require additional policy.
 
 Add a custom group, give it a name and enter one bare domain per line. Choose
-whether to include subdomains. Save, then Apply. Disabling or deleting a group
+whether to include subdomains. Use **Save and apply** (ذخیره و اعمال) to persist
+the full list and then synchronize the router. **Save only** (فقط ذخیره) leaves
+the list visibly pending. A failed save never proceeds to apply; a failed apply
+keeps the saved list pending for retry. Disabling or deleting a group
 takes effect on the router only after Apply. Duplicate domains are combined;
 if another enabled group still uses a domain, it remains selected.
 
