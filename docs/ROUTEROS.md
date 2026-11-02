@@ -59,7 +59,7 @@ exporting your running container: that can include private runtime data.
 Alternatively pull the versioned public GHCR image using your registry settings.
 Do not overwrite global registry settings without considering other containers.
 For a fresh router configured with `registry-url=https://ghcr.io`, the remote
-image is `mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1` (or `:latest`).
+image is `mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2` (or `:latest`).
 The public package requires no registry username or password, and contains both
 ARM64 and AMD64 variants. Use the native TUN settings below before enabling it
 as the selected-sites gateway.

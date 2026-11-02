@@ -11,6 +11,10 @@ No account, subscription, credentials, customer export or operational history is
 
 ## Features
 
+- Four mobile-friendly views: Home, Subscriptions, Apps, and Settings. Grouped
+  server cards, search and latency sorting replace wide tables; routine Xray
+  controls use a familiar mobile-client layout. No runtime settings are reset
+  when navigating, and unsaved domain edits survive view changes and polling.
 - Editable service presets and custom domain groups, with authenticated RouterOS
   DNS synchronization, readback verification and last-apply rollback.
   See [site management and one-time integration](docs/SITES.md).
@@ -37,12 +41,12 @@ One address selects the matching architecture automatically; no registry login i
 For reproducible installations, use the versioned tag:
 
 ```sh
-docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
+docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
+  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 
