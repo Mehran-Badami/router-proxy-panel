@@ -45,19 +45,24 @@ Only place trusted containers on this subnet.
 For a local ARM64 build/export on a Docker workstation:
 
 ```sh
-docker buildx build --platform linux/arm64 --load -t router-proxy-panel:arm64 .
-docker save -o router-proxy-panel-arm64.tar router-proxy-panel:arm64
+docker buildx build --platform linux/arm64 --load -t mikrotik-proxy-manager:arm64 .
+docker save -o mikrotik-proxy-manager-arm64.tar mikrotik-proxy-manager:arm64
 ```
 
 Upload this clean image tar to external storage. Never publish a tar created by
 exporting your running container: that can include private runtime data.
 
 ```routeros
-/container add file=disk1/router-proxy-panel-arm64.tar interface=rpp-panel root-dir=disk1/rpp-root mountlists=RPP_DATA envlists=RPP name=rpp-panel start-on-boot=yes logging=yes
+/container add file=disk1/mikrotik-proxy-manager-arm64.tar interface=rpp-panel root-dir=disk1/rpp-root mountlists=RPP_DATA envlists=RPP name=rpp-panel start-on-boot=yes logging=yes
 ```
 
 Alternatively pull the versioned public GHCR image using your registry settings.
 Do not overwrite global registry settings without considering other containers.
+For a fresh router configured with `registry-url=https://ghcr.io`, the remote
+image is `mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1` (or `:latest`).
+The public package requires no registry username or password, and contains both
+ARM64 and AMD64 variants. Use the native TUN settings below before enabling it
+as the selected-sites gateway.
 Configure a reachable ordinary DNS server for container bootstrap if RouterOS has
 no static/dynamic DNS server; see the container `dns` option.
 
@@ -66,7 +71,9 @@ that identity. If a newly created RouterOS mount is root-owned, provision owners
 before production startup: temporarily run this container as root with the entrypoint
 `/bin/sh` and command `-c "chown 10001:10001 /data && chmod 700 /data"`, wait for it
 to exit, then restore `user=10001:10001`, `entrypoint="python /app/manager.py"` and
-empty `cmd`. Do not leave the service running as root to work around permissions.
+empty `cmd`. Use `entrypoint="python /app/entrypoint.py"` from v0.3.0-beta.1 onward.
+Do not leave the service running as root to work around permissions. Native TUN
+mode has its own startup and privilege-drop procedure in [NATIVE_TUN.md](NATIVE_TUN.md).
 
 Start the panel; enter its shell and run `python /app/manager.py --print-token`.
 Use the resulting private key at `http://10.77.0.2:8080/`. Import your own
@@ -118,7 +125,12 @@ recovery. Observe logs and real client resolution; an `up` status alone is insuf
 The generated `rollback-dns.rsc` stops automation and disables its NAT rule;
 restore your own original DNS settings and any changed FWD rules from backup.
 
-## 6. Selective whole-network traffic: separate gateway required
+## 6. Selective whole-network traffic
+
+From v0.3.0-beta.1, [native TUN mode](NATIVE_TUN.md) provides the
+gateway inside the panel container at `10.77.0.2`. It does not need tun2socks.
+The separate-gateway instructions below remain available for older images and
+existing installations. Choose one gateway, then point the policy route at it.
 
 Use the official [tun2socks](https://github.com/xjasonlyu/tun2socks) image/release,
 for example the pinned `v2.7.0` release, in a second container (`10.77.0.3` here).
@@ -130,7 +142,8 @@ RouterOS/kernel combination. Verify return traffic before enabling policy routin
 
 In RouterOS, the design is:
 
-1. Create a FIB table `rpp-proxy` with default gateway `10.77.0.3`.
+1. Create a FIB table `rpp-proxy` with default gateway `10.77.0.2` for native TUN,
+   or `10.77.0.3` for the separate gateway.
 2. Use selected DNS FWD domains with `address-list=rpp-sites`,
    `forward-to="RPP Secure DNS"` and `match-subdomain=yes`.
 3. In LAN prerouting, mark new connections to `rpp-sites`; mark their routing

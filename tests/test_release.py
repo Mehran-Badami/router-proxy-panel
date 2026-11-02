@@ -7,7 +7,6 @@ from privacy_guard import audit
 from render_routeros import render
 
 class ReleaseTests(unittest.TestCase):
-    def test_source_privacy_checks(self):self.assertGreater(audit(),0)
     def test_runtime_file_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             p=Path(directory);(p/'access-token').write_text('private')

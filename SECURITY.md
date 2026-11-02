@@ -22,6 +22,12 @@ pin the validated address for the actual TLS connection and revalidate redirects
 Only TLS/Reality VLESS links are supported; insecure certificate flags are rejected.
 The SOCKS and DoH relay services rely on network firewall isolation, not application login.
 
+Native TUN mode requires a dedicated container network namespace and initial
+root privileges for network setup. The entrypoint then permanently drops to UID
+10001 before running the panel or Xray; the core inherits an already-open TUN
+descriptor. This mode does not authenticate forwarded packets. Restrict access
+at the router and explicitly configure only the intended client subnets.
+
 DoH failure does not enable plaintext DNS by itself. The optional RouterOS fallback
 recipe is a separate explicit deployment choice. System DNS bootstrap for VPN server
 hostnames is enabled by default so a fresh subscription can be used without a working

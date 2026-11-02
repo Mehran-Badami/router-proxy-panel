@@ -17,7 +17,9 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - run: python tools/privacy_guard.py
       - run: docker build -t router-proxy-panel:ci .
-      - run: python tools/container_smoke.py --image router-proxy-panel:ci
+      - run: python tests/integration/container_smoke.py --image router-proxy-panel:ci
+      - run: python -m pip install cryptography
+      - run: python tests/integration/native_tun_smoke.py --image router-proxy-panel:ci
       - run: python tools/package_release.py
       - uses: actions/upload-artifact@v6
         with:

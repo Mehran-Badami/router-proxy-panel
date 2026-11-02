@@ -1,4 +1,4 @@
-# Router Proxy Panel
+# MikroTik Proxy Manager
 
 A small, self-hosted Persian-language control panel for Xray on a trusted LAN,
 with container packaging and optional MikroTik RouterOS integration.
@@ -22,22 +22,27 @@ No account, subscription, credentials, customer export or operational history is
 - TLS passthrough to Google DoH over the selected VPN, independent of the website-proxy toggle.
 - Fresh per-install access key, persistent login cookie and a login form compatible with bookmarks.
 - Opt-in RouterOS DNS fallback scripts with recovery hysteresis and rollback instructions.
+- Optional native Xray TUN gateway: panel, VPN core and IPv4 forwarding in one
+  container. See the [native gateway guide](docs/NATIVE_TUN.md).
 
 This is not a VPN provider. A valid subscription is required. It does not install a
-transparent gateway or replace existing router rules automatically. Selective
-routing requires a separate tun2socks gateway and RouterOS policy routing.
+router rules automatically. Selective routing needs RouterOS policy routing and
+either native TUN mode (available from v0.3.0-beta.1) or an existing external gateway.
 
 ## Local Docker quick start
 
-Public multi-architecture image (AMD64 / ARM64):
+Public multi-architecture image (AMD64 / ARM64), hosted on GitHub Container Registry:
+`ghcr.io/mehran-badami/mikrotik-proxy-manager:latest`.
+One address selects the matching architecture automatically; no registry login is needed.
+For reproducible installations, use the versioned tag:
 
 ```sh
-docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
+docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
+  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 
@@ -86,10 +91,12 @@ literal server IP or a private preseeded cache. Do not publish that cache.
 Browser -> authenticated panel -> Xray selected outbound
 Router DNS -> verified HTTPS -> local TCP relay -> selected VPN -> Google DoH
 Selected LAN destinations -> separate tun2socks gateway -> Xray SOCKS
+With native TUN enabled: Selected LAN destinations -> same container -> Xray TUN
 ```
 
-The panel does not change RouterOS configuration. Optional scripts configure DNS
-separately. Without fallback, loss of the VPN can stop uncached DNS resolution.
+After the one-time HTTPS integration, the panel updates its managed RouterOS DNS
+rules. Initial network, firewall and routing setup remains an installation step.
+Without fallback, loss of the VPN can stop uncached DNS resolution.
 With explicit fallback, ordinary DNS may be manipulated and does not unblock sites.
 DoH alone does not hide the SNI of a site's separate direct connection.
 IP-based selective routing can include unrelated services sharing the same IP.
@@ -101,21 +108,29 @@ another server in the same expired subscription.
 
 ## Development and release
 
-Python 3.12; application and tests use the standard library. Runtime additionally
-needs curl and Xray (provided in the container).
+Python 3.12; application and unit tests use the standard library. Runtime additionally
+needs curl, iproute2 and Xray (provided in the container). The optional native TUN
+integration test uses `cryptography` to generate disposable test certificates.
 
 ```sh
 python -m unittest discover -s tests -v
 python tools/privacy_guard.py
 python tools/package_release.py
-docker build -t router-proxy-panel:local .
-python tools/container_smoke.py --image router-proxy-panel:local
+docker build -t mikrotik-proxy-manager:local .
+python tests/integration/container_smoke.py --image mikrotik-proxy-manager:local
 ```
 
 GitHub Actions runs tests and container smoke checks. Publishing requires a
 version tag or an explicit manual publish request and uses GHCR in the repository
 owner's namespace. Source archives are built from an allowlist, not from a live
 working directory or container export. See [release notes](docs/RELEASING.md).
+
+`tests/` contains regression tests for authentication, configuration, recovery,
+domain updates and rollback. `tests/integration/` holds the two reusable container
+checks: a clean panel install and the native gateway's real traffic/recovery path.
+Temporary deployment diagnostics and real router fixtures are not source files.
+The Docker build includes only `app/` and license notices; tests and developer
+tools are not copied into the deployed image.
 
 ## License
 
