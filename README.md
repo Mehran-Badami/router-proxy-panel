@@ -1,4 +1,4 @@
-# Router Proxy Panel
+# MikroTik Proxy Manager
 
 A small, self-hosted Persian-language control panel for Xray on a trusted LAN,
 with container packaging and optional MikroTik RouterOS integration.
@@ -27,20 +27,22 @@ No account, subscription, credentials, customer export or operational history is
 
 This is not a VPN provider. A valid subscription is required. It does not install a
 router rules automatically. Selective routing needs RouterOS policy routing and
-either the native TUN mode in this source branch or an existing external gateway.
-Native TUN is not included in the older published images shown below.
+either native TUN mode (available from v0.3.0-beta.1) or an existing external gateway.
 
 ## Local Docker quick start
 
-Public multi-architecture image (AMD64 / ARM64):
+Public multi-architecture image (AMD64 / ARM64), hosted on GitHub Container Registry:
+`ghcr.io/mehran-badami/mikrotik-proxy-manager:latest`.
+One address selects the matching architecture automatically; no registry login is needed.
+For reproducible installations, use the versioned tag:
 
 ```sh
-docker pull ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
+docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/router-proxy-panel:v0.2.2-beta.1
+  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 
@@ -114,8 +116,8 @@ integration test uses `cryptography` to generate disposable test certificates.
 python -m unittest discover -s tests -v
 python tools/privacy_guard.py
 python tools/package_release.py
-docker build -t router-proxy-panel:local .
-python tests/integration/container_smoke.py --image router-proxy-panel:local
+docker build -t mikrotik-proxy-manager:local .
+python tests/integration/container_smoke.py --image mikrotik-proxy-manager:local
 ```
 
 GitHub Actions runs tests and container smoke checks. Publishing requires a

@@ -1,6 +1,6 @@
 # Beta validation
 
-## Native TUN source branch (2026-11-02)
+## v0.3.0-beta.1 native TUN (2026-11-02)
 
 After removing a duplicate privacy-audit wrapper, 65 unit tests remain. The
 privacy guard still runs explicitly in CI and packaging. The two reusable

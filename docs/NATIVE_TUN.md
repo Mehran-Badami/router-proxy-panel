@@ -1,9 +1,9 @@
 # One-container IPv4 gateway
 
-This source branch adds an optional native Xray TUN gateway. The panel, Xray and
+Version v0.3.0-beta.1 adds an optional native Xray TUN gateway. The panel, Xray and
 forwarded application traffic run in one container; tun2socks is not needed.
-Older published tags do not include this feature. Build from this branch until
-a release explicitly includes it. Keep a private backup and the previous image.
+Use `ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.1` or build from source.
+Older tags do not include this feature. Keep a private backup and the previous image.
 
 ## What changes
 
@@ -106,8 +106,8 @@ The local test needs a Linux Docker engine and disposable TLS certificates:
 
 ```sh
 python -m pip install cryptography
-docker build -t router-proxy-panel:native .
-python tests/integration/native_tun_smoke.py --image router-proxy-panel:native
+docker build -t mikrotik-proxy-manager:native .
+python tests/integration/native_tun_smoke.py --image mikrotik-proxy-manager:native
 ```
 
 It creates isolated disposable client, gateway and TLS server containers. It

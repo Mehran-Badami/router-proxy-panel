@@ -2,6 +2,8 @@
 ARG XRAY_IMAGE=ghcr.io/xtls/xray-core:26.10.31@sha256:ceabeac03a89d991d2a247361825c1d1d2e9c91cd5dc010f298c7dc0c2f325c9
 FROM ${XRAY_IMAGE} AS xray
 FROM python:3.12-alpine
+LABEL org.opencontainers.image.title="MikroTik Proxy Manager" \
+      org.opencontainers.image.description="Xray VPN and selective routing management for MikroTik"
 RUN apk add --no-cache ca-certificates curl iproute2 \
     && addgroup -g 10001 panel && adduser -D -u 10001 -G panel panel \
     && mkdir /data && chown panel:panel /data
