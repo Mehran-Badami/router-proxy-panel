@@ -10,8 +10,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
@@ -21,7 +21,7 @@ jobs:
       - run: python -m pip install cryptography
       - run: python tests/integration/native_tun_smoke.py --image router-proxy-panel:ci
       - run: python tools/package_release.py
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: audited-source
           path: dist/
