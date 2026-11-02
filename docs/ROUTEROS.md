@@ -66,7 +66,9 @@ that identity. If a newly created RouterOS mount is root-owned, provision owners
 before production startup: temporarily run this container as root with the entrypoint
 `/bin/sh` and command `-c "chown 10001:10001 /data && chmod 700 /data"`, wait for it
 to exit, then restore `user=10001:10001`, `entrypoint="python /app/manager.py"` and
-empty `cmd`. Do not leave the service running as root to work around permissions.
+empty `cmd`. Use `entrypoint="python /app/entrypoint.py"` for builds from this branch.
+Do not leave the service running as root to work around permissions. Native TUN
+mode has its own startup and privilege-drop procedure in [NATIVE_TUN.md](NATIVE_TUN.md).
 
 Start the panel; enter its shell and run `python /app/manager.py --print-token`.
 Use the resulting private key at `http://10.77.0.2:8080/`. Import your own
@@ -118,7 +120,12 @@ recovery. Observe logs and real client resolution; an `up` status alone is insuf
 The generated `rollback-dns.rsc` stops automation and disables its NAT rule;
 restore your own original DNS settings and any changed FWD rules from backup.
 
-## 6. Selective whole-network traffic: separate gateway required
+## 6. Selective whole-network traffic
+
+For a new build from this branch, [native TUN mode](NATIVE_TUN.md) provides the
+gateway inside the panel container at `10.77.0.2`. It does not need tun2socks.
+The separate-gateway instructions below remain available for older images and
+existing installations. Choose one gateway, then point the policy route at it.
 
 Use the official [tun2socks](https://github.com/xjasonlyu/tun2socks) image/release,
 for example the pinned `v2.7.0` release, in a second container (`10.77.0.3` here).
@@ -130,7 +137,8 @@ RouterOS/kernel combination. Verify return traffic before enabling policy routin
 
 In RouterOS, the design is:
 
-1. Create a FIB table `rpp-proxy` with default gateway `10.77.0.3`.
+1. Create a FIB table `rpp-proxy` with default gateway `10.77.0.2` for native TUN,
+   or `10.77.0.3` for the separate gateway.
 2. Use selected DNS FWD domains with `address-list=rpp-sites`,
    `forward-to="RPP Secure DNS"` and `match-subdomain=yes`.
 3. In LAN prerouting, mark new connections to `rpp-sites`; mark their routing

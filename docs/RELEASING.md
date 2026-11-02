@@ -3,6 +3,9 @@
 1. Work in a clean clone. Never copy an operational data directory or router export.
 2. Run unit/integration tests and the source privacy guard.
 3. Build the container and run `tools/container_smoke.py` on AMD64 and ARM64.
+   For native gateway changes, also run `tools/native_tun_smoke.py` on native
+   AMD64 Linux with Docker and the `cryptography` test dependency. Record ARM64
+   gateway validation separately on physical hardware; emulation is not equivalent.
 4. Review the staged diff and file list; use a non-private commit author email.
 5. Run `tools/package_release.py`; inspect archive filenames before uploading.
 6. Tag a reviewed version such as `v0.1.0-beta.1` and push that tag. The publish

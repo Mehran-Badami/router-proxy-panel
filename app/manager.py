@@ -3,6 +3,7 @@ from safe_fetch import fetch_subscription
 from sites import SiteStore, merge_presets
 from onboarding import inspect_router
 from connection_health import ConnectionHealth
+import native_tun
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -92,6 +93,8 @@ def config(outbound, enabled=True, test=False, refresh_bootstrap=True):
     out=copy.deepcopy(secure) if enabled else {'protocol':'freedom'}
     c={'log':{'loglevel':'error','access':'none'},'inbounds':[{'listen':'127.0.0.1' if test else '0.0.0.0','port':TEST_PORT if test else SOCKS_PORT,'protocol':'socks','settings':{'udp':True}}],'outbounds':[out]}
     if not test:
+        tun=native_tun.inbound()
+        if tun:c['inbounds'].append(tun)
         c['inbounds'].append({'tag':'secure-doh','listen':'0.0.0.0','port':DOH_PORT,'protocol':'dokodemo-door','settings':{'address':DOH_IP,'port':443,'network':'tcp'}})
         secure['tag']='dns-vpn'; c['outbounds'].append(secure)
         c['routing']={'rules':[{'type':'field','inboundTag':['secure-doh'],'outboundTag':'dns-vpn'}]}
@@ -109,7 +112,8 @@ def start():
     if not saved: return
     c=config(saved[0],state['enabled'])
     save('runtime.json',c)
-    proc=subprocess.Popen([CORE,'run','-c',str(DATA/'runtime.json')],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    options={'pass_fds':native_tun.inherited_fds()} if native_tun.settings() else {}
+    proc=subprocess.Popen([CORE,'run','-c',str(DATA/'runtime.json')],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,**options)
 def restart():
     stop(); start(); time.sleep(.4)
     if proc is not None and proc.poll() is not None: raise ValueError('Core failed to start')
