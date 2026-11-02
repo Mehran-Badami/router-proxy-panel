@@ -100,7 +100,17 @@ try{
   assert.equal(await page.locator('#welcome').isHidden(),true,'working installations hide onboarding');
 
   // Drafts survive navigation and status polling; saving sends every group.
-  await nav('apps');const custom=page.locator('[data-site="custom-example"]');
+  await nav('apps');
+  // Opening/cancelling the add form must not create an empty program or offer deletion.
+  await page.locator('#site-add').click();await visible('#site-dialog');
+  assert.equal(await page.locator('#site-dialog button').filter({hasText:'حذف'}).count(),0);
+  await page.locator('#site-name').fill('برنامهٔ لغوشده');
+  await page.locator('#site-domains').fill('cancelled.example');
+  await shot('mobile-add-app');await noOverflow();
+  await page.locator('#site-cancel').click();
+  assert.equal(await page.locator('[data-site]').count(),originalSites.length);
+  assert.equal(posts.length,0);
+  const custom=page.locator('[data-site="custom-example"]');
   await custom.locator('[role=switch]').click();await custom.locator('summary').click();
   await custom.locator('textarea').fill('custom.example\nmedia.example\nextra.example');
   await nav('home');await page.evaluate(()=>status());await nav('apps');
@@ -138,6 +148,18 @@ try{
   await postClick('#sites-save','/api/sites/save');
   await postClick('#sites-apply','/api/sites/apply');
 
+  const beforeAdd=clone(sites.items);before=posts.length;
+  await page.locator('#site-add').click();await page.locator('#site-name').fill('برنامهٔ تازه');
+  await page.locator('#site-domains').fill('new.example\nmedia.new.example');
+  await page.locator('#site-subdomains').uncheck();await page.locator('#site-create').click();
+  assert.equal(await page.locator('#site-dialog').isHidden(),true);
+  assert.equal(posts.length,before,'confirming add only edits the draft');
+  assert.equal(await page.locator('[data-site]').count(),beforeAdd.length+1);
+  await postClick('#sites-apply','/api/sites/save');
+  assert.deepEqual(sites.items.slice(0,-1),beforeAdd);
+  assert.deepEqual(sites.items.at(-1).domains,['new.example','media.new.example']);
+  assert.equal(sites.items.at(-1).subdomains,false);
+
   // Groups, search, real action payloads, and editing the intended subscription.
   await nav('subscriptions');await page.locator('[data-group="one"] .group-open').click();
   await page.locator('#server-sort').selectOption('latency');
@@ -169,6 +191,7 @@ try{
   for(const width of [320,390,768,1280]){
     await page.setViewportSize({width,height:900});
     for(const name of ['home','subscriptions','apps','settings']){await nav(name);await noOverflow();}
+    if(width<=780)assert.equal(await page.locator('.site-bar').evaluate(e=>getComputedStyle(e).position),'static','mobile save controls must not cover content');
   }
   await page.goto(origin+'/#subscriptions');await waitEnabled('#add-subscription');await visible('#page-subscriptions');
   assert.equal(posts.length,last);

@@ -41,12 +41,12 @@ One address selects the matching architecture automatically; no registry login i
 For reproducible installations, use the versioned tag:
 
 ```sh
-docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2
+docker pull ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.3
 docker run -d --name router-proxy-panel --restart unless-stopped \
   --cap-drop=ALL --security-opt=no-new-privileges \
   -p 127.0.0.1:8080:8080 -p 127.0.0.1:1080:1080 -p 127.0.0.1:8443:8443 \
   -e PUBLIC_ORIGIN=http://localhost:8080 -v router-proxy-panel-data:/data \
-  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2
+  ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.3
 docker exec router-proxy-panel python /app/manager.py --print-token
 ```
 

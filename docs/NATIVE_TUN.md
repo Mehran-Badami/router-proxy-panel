@@ -2,7 +2,7 @@
 
 Version v0.3.0-beta.1 adds an optional native Xray TUN gateway. The panel, Xray and
 forwarded application traffic run in one container; tun2socks is not needed.
-Use `ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.2` or build from source.
+Use `ghcr.io/mehran-badami/mikrotik-proxy-manager:v0.3.0-beta.3` or build from source.
 Older tags do not include this feature. Keep a private backup and the previous image.
 
 ## What changes
